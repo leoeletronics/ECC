@@ -792,7 +792,7 @@ function isReadOnlyGitIntrospection(command) {
   }
 
   if (subcommand === 'show') {
-    // Permite: git show <ref>, git show --stat, git show --name-only,
+    // Allows: git show <ref>, git show --stat, git show --name-only,
     // git show <ref> --stat, git show <ref> --name-only
     if (args.length === 0) return false;
     if (args.length === 1) {

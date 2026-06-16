@@ -1206,6 +1206,20 @@ function runTests() {
     }
   }
 
+  function expectRoutineDeny(command, label) {
+    clearState();
+    const input = { tool_name: 'Bash', tool_input: { command } };
+    const result = runBashHook(input);
+    assert.strictEqual(result.code, 0, `${label}: exit code should be 0`);
+    const output = parseOutput(result.stdout);
+    assert.ok(output, `${label}: should produce JSON output`);
+    assert.strictEqual(output.hookSpecificOutput.permissionDecision, 'deny', `${label}: should deny`);
+    assert.ok(!output.hookSpecificOutput.permissionDecisionReason.includes('Destructive'),
+      `${label}: should not be destructive gate`);
+    assert.ok(output.hookSpecificOutput.permissionDecisionReason.includes('current user request'),
+      `${label}: reason should mention "current user request"`);
+  }
+
   if (test('denies short-form git push -f as destructive', () => {
     expectDestructiveDeny('git push -f origin main', 'git push -f');
   })) passed++; else failed++;
@@ -1745,8 +1759,8 @@ function runTests() {
       'destructive gate is exempt from dampening');
   })) passed++; else failed++;
 
-  // --- Novos comandos Git read-only ---
-  console.log('\n  Novos comandos Git read-only:');
+  // --- New read-only Git commands ---
+  console.log('\n  New read-only Git commands:');
 
   clearState();
   if (test('allows git diff --cached', () => {
@@ -1788,7 +1802,23 @@ function runTests() {
     expectAllow('git show HEAD --name-only', 'git show HEAD --name-only');
   })) passed++; else failed++;
 
-  // Garantir que comandos destrutivos continuam negados
+  // Negative tests: commands outside the allowlist must be denied by routine Bash gate
+  clearState();
+  if (test('denies git diff HEAD (not allowlisted)', () => {
+    expectRoutineDeny('git diff HEAD', 'git diff HEAD');
+  })) passed++; else failed++;
+
+  clearState();
+  if (test('denies git diff --name-only --cached --stat (not allowlisted)', () => {
+    expectRoutineDeny('git diff --name-only --cached --stat', 'git diff --name-only --cached --stat');
+  })) passed++; else failed++;
+
+  clearState();
+  if (test('denies git show HEAD --stat --name-only (not allowlisted)', () => {
+    expectRoutineDeny('git show HEAD --stat --name-only', 'git show HEAD --stat --name-only');
+  })) passed++; else failed++;
+
+  // Ensure destructive commands remain denied
   clearState();
   if (test('still denies git reset --hard', () => {
     expectDestructiveDeny('git reset --hard', 'git reset --hard');
